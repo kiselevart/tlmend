@@ -35,6 +35,7 @@ def run(
     policy: Annotated[str, typer.Option(help="Edit policy: trust, report, conservative")] = "",
     dry_run: Annotated[bool, typer.Option("--dry-run")] = False,
     chapter_range: Annotated[Optional[str], typer.Option("--range", help="e.g. 1-50")] = None,
+    concurrency: Annotated[Optional[int], typer.Option("--concurrency", "-j", help="Parallel LLM calls (overrides config)")] = None,
 ) -> None:
     """Run the correction pipeline on a project."""
     config = _load_config(project)
@@ -68,6 +69,7 @@ def run(
         output_fmt=output_fmt,
         source_files=source_files,
         chapter_range=chapter_range,
+        concurrency=concurrency,
     ))
 
 
@@ -80,6 +82,7 @@ async def _run_async(
     output_fmt: str,
     source_files: list[Path],
     chapter_range: str | None,
+    concurrency: int | None,
 ) -> None:
     from rich.console import Console
     from rich.table import Table
@@ -117,7 +120,7 @@ async def _run_async(
         project_dir=str(project),
         mode=effective_mode,  # type: ignore[arg-type]
         policy=effective_policy,  # type: ignore[arg-type]
-        concurrency=int(pipeline_cfg.get("concurrency", 4)),
+        concurrency=concurrency if concurrency is not None else int(pipeline_cfg.get("concurrency", 4)),
         cost_cap_usd=pipeline_cfg.get("cost_cap_usd"),
         prompt_version=str(pipeline_cfg.get("prompt_version", "v1")),
     )
