@@ -64,6 +64,12 @@ class EpubOutputAdapter(OutputAdapter):
 
 def _patch_xhtml(data: bytes, chapter: Chapter) -> bytes:
     """Replace paragraph text in an XHTML document with corrected text."""
+    # Preserve the original XML declaration + DOCTYPE (everything before <html).
+    # ET.fromstring drops both, so we splice them back onto ET's output.
+    decoded = data.decode("utf-8", errors="replace")
+    html_pos = decoded.find("<html")
+    preamble = decoded[:html_pos] if html_pos > 0 else ""
+
     try:
         root = ET.fromstring(data)
     except ET.ParseError:
@@ -93,4 +99,5 @@ def _patch_xhtml(data: bytes, chapter: Chapter) -> bytes:
                 p.remove(child)
             p.text = corrected.text
 
-    return ET.tostring(root, encoding="utf-8", xml_declaration=True)
+    body = ET.tostring(root, encoding="unicode")
+    return (preamble + body).encode("utf-8")
