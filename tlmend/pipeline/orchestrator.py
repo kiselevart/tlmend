@@ -48,23 +48,30 @@ async def run_pipeline(
     )
 
     semaphore = asyncio.Semaphore(config.concurrency)
-    assembled: list[Chapter] = []
+    assembled: list[Chapter | None] = [None] * len(chapters)
 
-    try:
-        for chapter in chapters:
-            result, chapter_result = await _run_chapter(
-                chapter, editor, reviewer, config, store, run_id, glossary_terms, semaphore
-            )
-            if result is not None:
-                assembled.append(result)
-            if on_chapter_done is not None:
-                on_chapter_done(chapter_result)
-    except CostCapExceeded:
-        await store.finish_run(run_id)
-        raise
+    async def _process(idx: int, chapter: Chapter) -> None:
+        result, chapter_result = await _run_chapter(
+            chapter, editor, reviewer, config, store, run_id, glossary_terms, semaphore
+        )
+        assembled[idx] = result
+        if on_chapter_done is not None:
+            on_chapter_done(chapter_result)
+
+    # return_exceptions=True so all tasks finish before we inspect outcomes;
+    # CostCapExceeded is re-raised after cleanup, other exceptions propagate.
+    outcomes = await asyncio.gather(
+        *[_process(idx, ch) for idx, ch in enumerate(chapters)],
+        return_exceptions=True,
+    )
 
     await store.finish_run(run_id)
-    return assembled
+
+    for outcome in outcomes:
+        if isinstance(outcome, BaseException):
+            raise outcome
+
+    return [ch for ch in assembled if ch is not None]
 
 
 async def _run_chapter(
