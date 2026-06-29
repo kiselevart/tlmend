@@ -85,10 +85,9 @@ async def _run_async(
     from rich.table import Table
     from rich import box
 
-    from tlmend.adapters.input.base import InputAdapter
     from tlmend.adapters.input.epub import EpubAdapter
     from tlmend.adapters.input.txt import TxtAdapter
-    from tlmend.adapters.output.base import OutputAdapter
+    from tlmend.adapters.output.epub import EpubOutputAdapter
     from tlmend.adapters.output.txt import TxtOutputAdapter
     from tlmend.glossary.loader import load_glossary
     from tlmend.models import ChapterResult, ChapterStatus, RunConfig
@@ -98,14 +97,18 @@ async def _run_async(
 
     console = Console()
 
-    _input_adapters: dict[str, InputAdapter] = {"txt": TxtAdapter(), "epub": EpubAdapter()}
-    _output_adapters: dict[str, OutputAdapter] = {"txt": TxtOutputAdapter()}
-
-    in_adapter = _input_adapters.get(source_fmt)
-    out_adapter = _output_adapters.get(output_fmt)
+    in_adapters = {"txt": TxtAdapter(), "epub": EpubAdapter()}
+    in_adapter = in_adapters.get(source_fmt)
     if in_adapter is None:
         raise typer.BadParameter(f"Unsupported source_format: {source_fmt!r}")
-    if out_adapter is None:
+
+    if output_fmt == "epub":
+        if not source_files:
+            raise typer.BadParameter("EPUB output requires a source EPUB template.")
+        out_adapter = EpubOutputAdapter(source_files[0])
+    elif output_fmt == "txt":
+        out_adapter = TxtOutputAdapter()
+    else:
         raise typer.BadParameter(f"Unsupported output_format: {output_fmt!r}")
 
     pipeline_cfg = config.get("pipeline", {})
@@ -185,8 +188,10 @@ async def _run_async(
     if assembled:
         output_dir = project / "output"
         output_dir.mkdir(exist_ok=True)
-        out_adapter.write(assembled, output_dir / "output.txt")
-        console.print(f"[dim]output → {output_dir / 'output.txt'}[/dim]")
+        ext = {"epub": ".epub", "txt": ".txt"}.get(output_fmt, ".txt")
+        out_path = output_dir / f"output{ext}"
+        out_adapter.write(assembled, out_path)
+        console.print(f"[dim]output → {out_path}[/dim]")
 
 
 @app.command()

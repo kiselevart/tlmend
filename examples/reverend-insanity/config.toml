@@ -1,7 +1,7 @@
 [project]
 name = "Reverend Insanity"
 source_format = "epub"       # txt | epub | markdown | html-dir | json
-output_format = "txt"        # txt | epub | static-site | diff-report
+output_format = "epub"       # txt | epub | static-site | diff-report
 
 [pipeline]
 mode   = "edit"              # edit | review
