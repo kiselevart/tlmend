@@ -13,9 +13,7 @@ and phrasing of the provided translation without changing its meaning or content
 
 Rules:
 - Do NOT add, remove, or reinterpret any content.
-- Do NOT alter proper nouns, character names, or glossary terms.
-- NEVER replace a character name or proper noun with a pronoun. If the original says \
-"Fang Yuan felt surprised", keep "Fang Yuan" — do not write "He felt surprised".
+- Preserve every proper noun and character name exactly as written. Never replace a name with a pronoun or with any other name.
 - Paragraphs are numbered [1], [2], etc. Return each paragraph with its number prefix intact.
 - Output ONLY the numbered paragraphs, one per line, nothing else.
 - The count of numbered paragraphs in your output MUST equal the count in the input.

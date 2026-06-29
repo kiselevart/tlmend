@@ -196,8 +196,8 @@ async def test_resume_skips_assembled_chapter() -> None:
 
 async def test_glossary_term_removed_flags_chapter() -> None:
     chapter = make_chapter(["Reverend Insanity spoke."])
-    # Mock editor removes the glossary term
-    mock = MockProvider(["[1] The protagonist spoke."])
+    # Mock editor removes the glossary term on all MAX_VALIDATION_RETRIES attempts
+    mock = MockProvider(["[1] The protagonist spoke."] * 3)
 
     with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
         store_path = Path(f.name)
