@@ -1,0 +1,22 @@
+[project]
+name = "Reverend Insanity"
+source_format = "epub"       # txt | epub | markdown | html-dir | json
+output_format = "txt"        # txt | epub | static-site | diff-report
+
+[pipeline]
+mode   = "edit"              # edit | review
+policy = "report"            # trust | report | conservative  (edit mode only)
+concurrency = 4
+cost_cap_usd = 5.0
+prompt_version = "v1"
+
+[editor]
+provider = "deepseek"
+model    = "deepseek-v4-flash"
+
+[reviewer]
+provider = "deepseek"
+model    = "deepseek-v4-flash"
+
+[glossary]
+path = "glossary.json"
