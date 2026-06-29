@@ -11,7 +11,7 @@ import zipfile
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
-from tlmend.adapters.input.epub import _find_opf, _spine_hrefs
+from tlmend.adapters.input.epub import _find_opf, _is_meta_paragraph, _spine_hrefs
 from tlmend.adapters.output.base import OutputAdapter
 from tlmend.models import Chapter
 
@@ -77,16 +77,10 @@ def _patch_xhtml(data: bytes, chapter: Chapter) -> bytes:
 
     para_iter = iter(chapter.paragraphs)
     for p in root.iter(f"{{{_XHTML}}}p"):
+        if _is_meta_paragraph(p):
+            continue
         text = "".join(p.itertext()).strip()
         if not text:
-            continue
-        # Mirror the skip logic in EpubAdapter._extract_paragraphs
-        children = list(p)
-        if (
-            len(children) == 1
-            and children[0].tag == f"{{{_XHTML}}}strong"
-            and text.startswith("Chapter")
-        ):
             continue
 
         try:

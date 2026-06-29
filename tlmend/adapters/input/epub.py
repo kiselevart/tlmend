@@ -6,9 +6,20 @@ to extract title and paragraphs.
 
 from __future__ import annotations
 
+import re
 import zipfile
 import xml.etree.ElementTree as ET
 from pathlib import Path
+
+# Paragraphs matching these patterns are metadata injected by exporters/translators.
+# They are skipped in extraction so the LLM never sees them, and skipped in the
+# output adapter so they pass through verbatim.
+_META_RE = re.compile(
+    r"^Chapter\s+\d+\b"           # plain-text chapter title repeat
+    r"|^Translator\s*:"            # translator credit line
+    r"|^Editor\s*:",               # editor credit line (sometimes standalone)
+    re.IGNORECASE,
+)
 
 from tlmend.adapters.input.base import InputAdapter
 from tlmend.models import Chapter, Paragraph
@@ -85,17 +96,28 @@ def _extract_paragraphs(root: ET.Element) -> list[Paragraph]:
     paragraphs: list[Paragraph] = []
     idx = 0
     for p in root.iter(f"{{{_XHTML}}}p"):
+        if _is_meta_paragraph(p):
+            continue
         text = "".join(p.itertext()).strip()
         if not text:
-            continue
-        # skip the bold duplicate-title paragraph that some exporters inject
-        children = list(p)
-        if (
-            len(children) == 1
-            and children[0].tag == f"{{{_XHTML}}}strong"
-            and text.startswith("Chapter")
-        ):
             continue
         paragraphs.append(Paragraph(index=idx, text=text))
         idx += 1
     return paragraphs
+
+
+def _is_meta_paragraph(p: ET.Element) -> bool:
+    """Return True for paragraphs that are metadata, not prose."""
+    text = "".join(p.itertext()).strip()
+    if not text:
+        return False
+    # Bold duplicate-title: <p><strong>Chapter N …</strong></p>
+    children = list(p)
+    if (
+        len(children) == 1
+        and children[0].tag == f"{{{_XHTML}}}strong"
+        and text.startswith("Chapter")
+    ):
+        return True
+    # Plain-text chapter title repeat, translator/editor credit lines
+    return bool(_META_RE.match(text))
