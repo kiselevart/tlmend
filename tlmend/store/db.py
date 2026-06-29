@@ -157,6 +157,15 @@ class Store:
         )
         await self._conn.commit()
 
+    async def reset_flagged(self, run_id: int) -> int:
+        """Reset all flagged chapters in *run_id* to pending. Returns count reset."""
+        cur = await self._conn.execute(
+            "UPDATE chapters SET status='pending' WHERE run_id=? AND status='flagged'",
+            (run_id,),
+        )
+        await self._conn.commit()
+        return cur.rowcount
+
     # --- edits ---
 
     async def write_edit(

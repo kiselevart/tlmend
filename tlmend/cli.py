@@ -36,6 +36,7 @@ def run(
     dry_run: Annotated[bool, typer.Option("--dry-run")] = False,
     chapter_range: Annotated[Optional[str], typer.Option("--range", help="e.g. 1-50")] = None,
     concurrency: Annotated[Optional[int], typer.Option("--concurrency", "-j", help="Parallel LLM calls (overrides config)")] = None,
+    retry_flagged: Annotated[bool, typer.Option("--retry-flagged", help="Reset flagged chapters to pending before running")] = False,
 ) -> None:
     """Run the correction pipeline on a project."""
     config = _load_config(project)
@@ -70,6 +71,7 @@ def run(
         source_files=source_files,
         chapter_range=chapter_range,
         concurrency=concurrency,
+        retry_flagged=retry_flagged,
     ))
 
 
@@ -83,6 +85,7 @@ async def _run_async(
     source_files: list[Path],
     chapter_range: str | None,
     concurrency: int | None,
+    retry_flagged: bool = False,
 ) -> None:
     from rich.console import Console
     from rich.table import Table
@@ -162,6 +165,18 @@ async def _run_async(
 
     store_path = project / "run.sqlite"
     async with Store(store_path) as store:
+        if retry_flagged:
+            # Must find the run first to know which run_id to reset.
+            from datetime import datetime, timezone
+            run_id = await store.find_or_create_run(
+                str(project), run_cfg.mode, run_cfg.policy,
+                run_cfg.prompt_version, datetime.now(timezone.utc).isoformat(),
+            )
+            n = await store.reset_flagged(run_id)
+            if n:
+                console.print(f"[yellow]Retrying {n} flagged chapter(s).[/yellow]")
+            else:
+                console.print("[dim]No flagged chapters to retry.[/dim]")
         try:
             assembled = await run_pipeline(
                 chapters, editor, reviewer, run_cfg, store, glossary_terms,
