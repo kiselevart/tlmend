@@ -6,7 +6,7 @@ output_format = "epub"       # txt | epub | static-site | diff-report
 [pipeline]
 mode   = "edit"              # edit | review
 policy = "report"            # trust | report | conservative  (edit mode only)
-concurrency = 4
+concurrency = 64
 cost_cap_usd = 5.0
 prompt_version = "v1"
 

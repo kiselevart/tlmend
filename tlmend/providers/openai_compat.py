@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
+import asyncio
 import httpx
 
 from tlmend.models import CompletionResult
 from tlmend.providers.base import Message
+
+_RATE_LIMIT_RETRIES = 6
+_RATE_LIMIT_BASE_DELAY = 2.0  # seconds; doubles each attempt (2, 4, 8, 16, 32, 64)
 
 
 class OpenAICompatProvider:
@@ -37,14 +41,23 @@ class OpenAICompatProvider:
             "messages": [{"role": m.role, "content": m.content} for m in messages],
             **self._extra_body,
         }
-        response = await self._client.post(
-            f"{self._base_url}/chat/completions",
-            headers={
-                "Authorization": f"Bearer {self._api_key}",
-                "content-type": "application/json",
-            },
-            json=payload,
-        )
+        delay = _RATE_LIMIT_BASE_DELAY
+        response: httpx.Response | None = None
+        for attempt in range(_RATE_LIMIT_RETRIES + 1):
+            response = await self._client.post(
+                f"{self._base_url}/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {self._api_key}",
+                    "content-type": "application/json",
+                },
+                json=payload,
+            )
+            if response.status_code == 429 and attempt < _RATE_LIMIT_RETRIES:
+                await asyncio.sleep(delay)
+                delay *= 2
+                continue
+            break
+        assert response is not None
         response.raise_for_status()
         data = response.json()
 
