@@ -166,17 +166,15 @@ async def _run_async(
     store_path = project / "run.sqlite"
     async with Store(store_path) as store:
         if retry_flagged:
-            # Must find the run first to know which run_id to reset.
-            from datetime import datetime, timezone
-            run_id = await store.find_or_create_run(
-                str(project), run_cfg.mode, run_cfg.policy,
-                run_cfg.prompt_version, datetime.now(timezone.utc).isoformat(),
-            )
-            n = await store.reset_flagged(run_id)
-            if n:
-                console.print(f"[yellow]Retrying {n} flagged chapter(s).[/yellow]")
+            run_id = await store.reopen_best_run(str(project))
+            if run_id is not None:
+                n = await store.reset_flagged(run_id)
+                console.print(
+                    f"[yellow]Retrying {n} flagged chapter(s).[/yellow]" if n
+                    else "[dim]No flagged chapters found in last run.[/dim]"
+                )
             else:
-                console.print("[dim]No flagged chapters to retry.[/dim]")
+                console.print("[dim]No previous run found.[/dim]")
         try:
             assembled = await run_pipeline(
                 chapters, editor, reviewer, run_cfg, store, glossary_terms,

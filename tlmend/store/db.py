@@ -166,6 +166,31 @@ class Store:
         await self._conn.commit()
         return cur.rowcount
 
+    async def reopen_best_run(self, project: str) -> int | None:
+        """Find the most productive run for *project* (most assembled chapters), reopen it.
+
+        Ignores runs with zero assembled chapters — these are likely aborted retries.
+        Returns the run id, or None if no usable run exists.
+        """
+        row = await (await self._conn.execute(
+            """
+            SELECT r.id
+            FROM runs r
+            WHERE r.project = ?
+              AND (SELECT count(*) FROM chapters c WHERE c.run_id = r.id AND c.status = 'assembled') > 0
+            ORDER BY (SELECT count(*) FROM chapters c WHERE c.run_id = r.id AND c.status = 'assembled') DESC,
+                     r.id DESC
+            LIMIT 1
+            """,
+            (project,),
+        )).fetchone()
+        if row is None:
+            return None
+        run_id = int(row[0])
+        await self._conn.execute("UPDATE runs SET ended_at=NULL WHERE id=?", (run_id,))
+        await self._conn.commit()
+        return run_id
+
     # --- edits ---
 
     async def write_edit(
